@@ -149,6 +149,21 @@
       .tab-panel > .card { min-height:0; }
       .site-header { padding-top:30px; }
     }
+    /* STEP 12: 思い出アルバム */
+    textarea {display:block;width:100%;font:inherit;color:var(--text-color);background:#fff;border:1px solid var(--border-color);border-radius:8px;padding:10px;margin:8px 0 16px;resize:vertical;}
+    textarea:focus-visible {outline:2px solid var(--accent);outline-offset:2px;}
+    .collection-tools {margin-bottom:20px;}
+    .filter-tabs {display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;}
+    .filter-tab {background:transparent;color:var(--text-color);border:1px solid var(--border-color);padding:8px 14px;}
+    .filter-tab.is-active {background:var(--accent);color:#fff;border-color:var(--accent);}
+    .collection-search-row {display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,200px);gap:12px;align-items:end;}
+    .collection-search-row label {font-size:13px;}
+    .collection-search-row input,.collection-search-row select {width:100%;margin:5px 0 0;padding:10px;border-radius:8px;min-width:0;}
+    #collectionCount {margin:10px 0 0;}
+    .status-tag {display:inline-block;padding:3px 9px;border-radius:100px;background:var(--soft-bg);font-size:12px;margin-top:6px;}
+    .goods-memo {white-space:pre-wrap;overflow-wrap:anywhere;max-height:5.4em;overflow:hidden;}
+    .empty-collection {grid-column:1/-1;text-align:center;padding:35px 10px;color:var(--text-color);}
+    @media(max-width:520px) {.collection-search-row{grid-template-columns:1fr;} }
   </style>
 </head>
 <body>
@@ -172,6 +187,18 @@
       <section class="tab-panel" id="panel-collection" role="tabpanel" aria-labelledby="tab-collection">
   <div class="card">
     <h2>マイコレクション</h2>
+    <div class="collection-tools">
+      <div class="filter-tabs" role="group" aria-label="所持状態で絞り込み">
+        <button type="button" class="filter-tab is-active" data-filter="all" aria-pressed="true">すべて</button>
+        <button type="button" class="filter-tab" data-filter="owned" aria-pressed="false">♡ 所持中</button>
+        <button type="button" class="filter-tab" data-filter="sold" aria-pressed="false">♧ 思い出</button>
+      </div>
+      <div class="collection-search-row">
+        <label class="search-label" for="goodsSearch">グッズを検索<input id="goodsSearch" type="search" placeholder="名前・思い出メモで検索"></label>
+        <label class="sort-label" for="goodsSort">並び替え<select id="goodsSort"><option value="new">登録が新しい順</option><option value="old">登録が古い順</option><option value="buyHigh">購入価格が高い順</option><option value="buyLow">購入価格が安い順</option><option value="name">名前順</option></select></label>
+      </div>
+      <p id="collectionCount" class="hint" aria-live="polite"></p>
+    </div>
     <div id="goodsList" class="goods-grid"></div>
   </div>
       </section>
@@ -188,6 +215,12 @@
     <label for="sellPrice">売却価格（未売却なら空欄）</label>
     <input type="number" id="sellPrice" min="0" placeholder="例：1190">
 
+    <label for="goodsStatus">コレクションの状態</label>
+    <select id="goodsStatus"><option value="owned">所持中</option><option value="sold">思い出（手放した）</option></select>
+    <p class="hint">売却価格を入力すると「思い出」に自動設定されます。あとから変更もできます。</p>
+    <label for="goodsBoughtAt">購入日（任意）</label><input id="goodsBoughtAt" type="date">
+    <label for="goodsSoldAt">売却日（任意）</label><input id="goodsSoldAt" type="date">
+    <label for="goodsMemo">思い出メモ（任意）</label><textarea id="goodsMemo" rows="3" placeholder="このグッズとの思い出を書いてね"></textarea>
     <label for="goodsPhoto">グッズの写真</label>
     <input type="file" id="goodsPhoto" accept="image/*">
 
@@ -240,6 +273,11 @@
     <input id="editBuy" type="number" min="0">
     <label for="editSell">売却価格（未売却なら空欄）</label>
     <input id="editSell" type="number" min="0">
+    <label for="editStatus">コレクションの状態</label>
+    <select id="editStatus"><option value="owned">所持中</option><option value="sold">思い出（手放した）</option></select>
+    <label for="editBoughtAt">購入日（任意）</label><input id="editBoughtAt" type="date">
+    <label for="editSoldAt">売却日（任意）</label><input id="editSoldAt" type="date">
+    <label for="editMemo">思い出メモ（任意）</label><textarea id="editMemo" rows="4" placeholder="思い出を残そう"></textarea>
     <p id="editBalance"></p>
     <label for="editPhoto">写真を変更（変更しないなら空欄）</label>
     <input id="editPhoto" type="file" accept="image/*">
@@ -290,6 +328,21 @@
     const STORE_NAME = "goods";
     let db;
     let photoUrls = [];
+    let collectionFilter = "all";
+    const $ = id => document.getElementById(id);
+    const statusOf = item => item.status === "owned" || item.status === "sold" ? item.status : (item.sell === null || item.sell === undefined ? "owned" : "sold");
+    const validDate = value => typeof value === "string" && (value === "" || (/^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value))));
+    const validStatus = value => value === "owned" || value === "sold";
+    function updateNewStatus() { if ($("sellPrice").value !== "") $("goodsStatus").value = "sold"; }
+    $("sellPrice").addEventListener("change", updateNewStatus);
+    $("editSell").addEventListener("change", () => { if ($("editSell").value !== "") $("editStatus").value = "sold"; });
+    document.querySelectorAll(".filter-tab").forEach(button => button.addEventListener("click", () => {
+      collectionFilter = button.dataset.filter;
+      document.querySelectorAll(".filter-tab").forEach(b => {const selected=b===button;b.classList.toggle("is-active",selected);b.setAttribute("aria-pressed",String(selected));});
+      renderGoods().catch(console.error);
+    }));
+    $("goodsSearch").addEventListener("input", () => renderGoods().catch(console.error));
+    $("goodsSort").addEventListener("change", () => renderGoods().catch(console.error));
 
     function openDatabase() {
       return new Promise((resolve, reject) => {
@@ -388,13 +441,22 @@
           name,
           buy: Number(buyInput),
           sell: sellInput === "" ? null : Number(sellInput),
-          photo
+          photo,
+          status: $("goodsStatus").value,
+          boughtAt: $("goodsBoughtAt").value,
+          soldAt: $("goodsSoldAt").value,
+          memo: $("goodsMemo").value.trim(),
+          createdAt: new Date().toISOString()
         });
 
         document.getElementById("goodsName").value = "";
         document.getElementById("buyPrice").value = "";
         document.getElementById("sellPrice").value = "";
         photoInput.value = "";
+        $("goodsStatus").value = "owned";
+        $("goodsBoughtAt").value = "";
+        $("goodsSoldAt").value = "";
+        $("goodsMemo").value = "";
 
         await renderGoods();
         switchTab("collection");
@@ -408,79 +470,67 @@
 
     async function renderGoods() {
       const goods = await getAllGoods();
-      const list = document.getElementById("goodsList");
-
+      const list = $("goodsList");
       photoUrls.forEach(url => URL.revokeObjectURL(url));
       photoUrls = [];
       list.replaceChildren();
+      let totalBuy = 0, totalSell = 0;
+      for (const item of goods) {totalBuy += item.buy; totalSell += item.sell ?? 0;}
+      $("totalBuy").textContent = totalBuy.toLocaleString();
+      $("totalSell").textContent = totalSell.toLocaleString();
+      $("balance").textContent = (totalBuy - totalSell).toLocaleString();
 
-      let totalBuy = 0;
-      let totalSell = 0;
-
-      goods.forEach(item => {
-        totalBuy += item.buy;
-        totalSell += item.sell ?? 0;
-
-        const div = document.createElement("div");
-        div.className = "goods-item";
-
-        const photoButton = document.createElement("button");
-        photoButton.type = "button";
-        photoButton.className = "goods-photo-button";
-        photoButton.setAttribute("aria-label", item.name + "の詳細を開く");
-        photoButton.addEventListener("click", () => openEditDialog(item.id));
-
-        if (item.photo) {
-          const img = document.createElement("img");
-          const url = URL.createObjectURL(item.photo);
-          photoUrls.push(url);
-          img.src = url;
-          img.alt = item.name;
-          photoButton.appendChild(img);
+      const keyword = $("goodsSearch").value.trim().toLocaleLowerCase();
+      const visible = goods.filter(item =>
+        (collectionFilter === "all" || statusOf(item) === collectionFilter) &&
+        (!keyword || (item.name + " " + (item.memo || "")).toLocaleLowerCase().includes(keyword))
+      );
+      const sort = $("goodsSort").value;
+      visible.sort((a,b) => {
+        if (sort === "buyHigh") return b.buy-a.buy;
+        if (sort === "buyLow") return a.buy-b.buy;
+        if (sort === "name") return a.name.localeCompare(b.name,"ja");
+        // 旧データには登録日時がないため、ID順で安定した順番を維持する
+        const aa=a.createdAt || a.id, bb=b.createdAt || b.id;
+        return sort === "old" ? aa.localeCompare(bb) : bb.localeCompare(aa);
+      });
+      $("collectionCount").textContent = `${visible.length}件を表示（全${goods.length}件）`;
+      if (!visible.length) {
+        const empty=document.createElement("p");empty.className="empty-collection";
+        empty.textContent=goods.length ? "条件に合うグッズがないよ。検索や絞り込みを変えてみてね。" : "まだグッズがないよ。お気に入りの一枚を登録してみよう ♡";
+        list.appendChild(empty);
+      }
+      visible.forEach(item => {
+        const div=document.createElement("div");div.className="goods-item";
+        const photoButton=document.createElement("button");
+        photoButton.type="button";photoButton.className="goods-photo-button";
+        photoButton.setAttribute("aria-label",item.name+"の詳細を開く");
+        photoButton.addEventListener("click",()=>openEditDialog(item.id));
+        if(item.photo) {
+          const img=document.createElement("img");const url=URL.createObjectURL(item.photo);
+          photoUrls.push(url);img.src=url;img.alt=item.name;photoButton.appendChild(img);
         } else {
-          const placeholder = document.createElement("div");
-          placeholder.className = "placeholder";
-          placeholder.textContent = "写真なし（詳細を開く）";
-          photoButton.appendChild(placeholder);
+          const placeholder=document.createElement("div");placeholder.className="placeholder";
+          placeholder.textContent="写真なし（詳細を開く）";photoButton.appendChild(placeholder);
         }
-        div.appendChild(photoButton);
-
-        const name = document.createElement("h3");
-        name.textContent = item.name;
-
-        const details = document.createElement("p");
-        details.textContent =
-          "購入：" + item.buy.toLocaleString() + "円 ／ " +
-          (item.sell === null
-            ? "未売却"
-            : "売却：" + item.sell.toLocaleString() + "円");
-
-        const deleteButton = document.createElement("button");
-        deleteButton.textContent = "削除";
-        deleteButton.addEventListener("click", async () => {
-          if (!confirm("このグッズを削除する？")) return;
-          try {
-            await removeGoods(item.id);
-            await renderGoods();
-          } catch (error) {
-            console.error(error);
-            alert("削除に失敗したよ。");
-          }
+        const status=document.createElement("span");status.className="status-tag";
+        status.textContent=statusOf(item)==="sold" ? "♧ 思い出" : "♡ 所持中";
+        const name=document.createElement("h3");name.textContent=item.name;
+        const details=document.createElement("p");
+        details.textContent="購入："+item.buy.toLocaleString()+"円 ／ "+(item.sell==null?"未売却":"売却："+item.sell.toLocaleString()+"円");
+        div.append(photoButton,status,name,details);
+        if(item.memo) {const memo=document.createElement("p");memo.className="goods-memo hint";memo.textContent=item.memo;div.appendChild(memo);}
+        const editButton=document.createElement("button");editButton.textContent="詳細・編集";
+        editButton.addEventListener("click",()=>openEditDialog(item.id));
+        const deleteButton=document.createElement("button");deleteButton.textContent="削除";
+        deleteButton.addEventListener("click",async()=>{
+          if(!confirm("このグッズを削除する？ 写真と思い出メモも消えるよ。")) return;
+          try {await removeGoods(item.id);await renderGoods();}
+          catch(error){console.error(error);alert("削除に失敗したよ。");}
         });
-
-        const editButton = document.createElement("button");
-        editButton.textContent = "詳細・編集";
-        editButton.addEventListener("click", () => openEditDialog(item.id));
-        div.append(name, details, editButton, document.createTextNode(" "), deleteButton);
+        div.append(editButton,document.createTextNode(" "),deleteButton);
         list.appendChild(div);
       });
-
-      document.getElementById("totalBuy").textContent =
-        totalBuy.toLocaleString();
-      document.getElementById("totalSell").textContent =
-        totalSell.toLocaleString();
-      document.getElementById("balance").textContent =
-        (totalBuy - totalSell).toLocaleString();
     }
 
     let editingId = null;
@@ -500,6 +550,10 @@
         document.getElementById("editName").value = item.name;
         document.getElementById("editBuy").value = item.buy;
         document.getElementById("editSell").value = item.sell ?? "";
+        $("editStatus").value = statusOf(item);
+        $("editBoughtAt").value = item.boughtAt || "";
+        $("editSoldAt").value = item.soldAt || "";
+        $("editMemo").value = item.memo || "";
         document.getElementById("editPhoto").value = "";
         document.getElementById("removeEditPhoto").checked = false;
         clearEditPreviewUrl();
@@ -555,6 +609,10 @@
         const removePhoto = document.getElementById("removeEditPhoto").checked;
         await putGoods({
           ...item, name, buy, sell,
+          status: $("editStatus").value,
+          boughtAt: $("editBoughtAt").value,
+          soldAt: $("editSoldAt").value,
+          memo: $("editMemo").value.trim(),
           photo: selectedPhoto || (removePhoto ? null : item.photo)
         });
         document.getElementById("editDialog").close();
@@ -638,6 +696,11 @@
             name: item.name,
             buy: item.buy,
             sell: item.sell,
+            status: statusOf(item),
+            boughtAt: item.boughtAt || "",
+            soldAt: item.soldAt || "",
+            memo: item.memo || "",
+            createdAt: item.createdAt || "",
             photo: item.photo
               ? await fileToDataURL(item.photo)
               : null
@@ -646,7 +709,7 @@
 
         const backup = {
           app: "oshi-goods-manager",
-          version: 1,
+          version: 2,
           exportedAt: new Date().toISOString(),
           goods: records
         };
@@ -697,7 +760,7 @@
 
         if (
           backup.app !== "oshi-goods-manager" ||
-          backup.version !== 1 ||
+          ![1,2].includes(backup.version) ||
           !Array.isArray(backup.goods)
         ) {
           throw new Error("対応していないバックアップです");
@@ -723,11 +786,22 @@
             throw new Error("グッズ情報の形式が不正です");
           }
 
+          if (backup.version === 2 &&
+              (!validStatus(item.status) || !validDate(item.boughtAt) ||
+               !validDate(item.soldAt) || typeof item.memo !== "string" ||
+               typeof item.createdAt !== "string")) {
+            throw new Error("追加項目の形式が不正です");
+          }
           restored.push({
             id: item.id,
             name: item.name,
             buy: item.buy,
             sell: item.sell,
+            status: validStatus(item.status) ? item.status : (item.sell == null ? "owned" : "sold"),
+            boughtAt: validDate(item.boughtAt) ? item.boughtAt : "",
+            soldAt: validDate(item.soldAt) ? item.soldAt : "",
+            memo: typeof item.memo === "string" ? item.memo : "",
+            createdAt: typeof item.createdAt === "string" ? item.createdAt : "",
             photo: item.photo == null
               ? null
               : await dataURLToBlob(item.photo)
