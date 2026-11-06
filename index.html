@@ -66,6 +66,15 @@
       color: #999;
     }
     .summary { font-size: 18px; font-weight: bold; }
+    .goods-photo-button { display: block; width: 100%; padding: 0; background: transparent; color: inherit; }
+    .goods-photo-button:focus-visible { outline: 3px solid #db6697; outline-offset: 3px; }
+    .goods-photo-button img, .goods-photo-button .placeholder { width: 100%; }
+    dialog { border: 0; border-radius: 14px; padding: 24px; width: min(440px, calc(100% - 48px)); max-height: 85vh; overflow: auto; }
+    dialog::backdrop { background: #0008; }
+    .dialog-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .secondary-button { background: #777; }
+    #editPreview { width: 100%; max-height: 260px; object-fit: contain; border-radius: 8px; }
+    .hint { font-size: 13px; color: #777; }
   </style>
 </head>
 <body>
@@ -126,6 +135,26 @@
     </button>
   </div>
   
+  <dialog id="editDialog" aria-labelledby="editTitle">
+    <h2 id="editTitle">グッズ詳細・編集</h2>
+    <img id="editPreview" alt="グッズの写真" hidden>
+    <p id="editNoPhoto" class="placeholder">写真なし</p>
+    <label for="editName">グッズ名</label>
+    <input id="editName" type="text">
+    <label for="editBuy">購入価格（円）</label>
+    <input id="editBuy" type="number" min="0">
+    <label for="editSell">売却価格（未売却なら空欄）</label>
+    <input id="editSell" type="number" min="0">
+    <p id="editBalance"></p>
+    <label for="editPhoto">写真を変更（変更しないなら空欄）</label>
+    <input id="editPhoto" type="file" accept="image/*">
+    <label><input id="removeEditPhoto" type="checkbox" style="display:inline;width:auto"> 現在の写真を削除する</label>
+    <div class="dialog-actions">
+      <button id="saveEditButton">変更を保存</button>
+      <button id="closeEditButton" class="secondary-button">閉じる</button>
+    </div>
+  </dialog>
+
   <script>
     const DB_NAME = "oshiGoodsDB";
     const STORE_NAME = "goods";
@@ -176,18 +205,22 @@
     }
 
     async function migrateOldData() {
-      const oldData = JSON.parse(
-        localStorage.getItem("oshiGoods") || "[]"
-      );
+      const key = "oshiGoodsMigrationDoneV1";
+      if (localStorage.getItem(key) === "true") return;
 
       const existing = await getAllGoods();
-      const existingIds = new Set(existing.map(item => item.id));
-
-      for (const item of oldData) {
-        if (!existingIds.has(item.id)) {
-          await putGoods({ ...item, photo: null });
-        }
+      // IndexedDBに既に記録がある場合、過去の移行は完了済みとみなす。
+      // 削除済みの古い記録を再登録しないための安全策。
+      if (existing.length > 0) {
+        localStorage.setItem(key, "true");
+        return;
       }
+
+      const oldData = JSON.parse(localStorage.getItem("oshiGoods") || "[]");
+      for (const item of oldData) {
+        await putGoods({ ...item, photo: null });
+      }
+      localStorage.setItem(key, "true");
     }
 
     async function addGoods() {
@@ -260,19 +293,26 @@
         const div = document.createElement("div");
         div.className = "goods-item";
 
+        const photoButton = document.createElement("button");
+        photoButton.type = "button";
+        photoButton.className = "goods-photo-button";
+        photoButton.setAttribute("aria-label", item.name + "の詳細を開く");
+        photoButton.addEventListener("click", () => openEditDialog(item.id));
+
         if (item.photo) {
           const img = document.createElement("img");
           const url = URL.createObjectURL(item.photo);
           photoUrls.push(url);
           img.src = url;
           img.alt = item.name;
-          div.appendChild(img);
+          photoButton.appendChild(img);
         } else {
           const placeholder = document.createElement("div");
           placeholder.className = "placeholder";
-          placeholder.textContent = "写真なし";
-          div.appendChild(placeholder);
+          placeholder.textContent = "写真なし（詳細を開く）";
+          photoButton.appendChild(placeholder);
         }
+        div.appendChild(photoButton);
 
         const name = document.createElement("h3");
         name.textContent = item.name;
@@ -297,7 +337,10 @@
           }
         });
 
-        div.append(name, details, deleteButton);
+        const editButton = document.createElement("button");
+        editButton.textContent = "詳細・編集";
+        editButton.addEventListener("click", () => openEditDialog(item.id));
+        div.append(name, details, editButton, document.createTextNode(" "), deleteButton);
         list.appendChild(div);
       });
 
@@ -309,6 +352,101 @@
         (totalBuy - totalSell).toLocaleString();
     }
 
+    let editingId = null;
+    let editPreviewUrl = null;
+
+    function clearEditPreviewUrl() {
+      if (editPreviewUrl) URL.revokeObjectURL(editPreviewUrl);
+      editPreviewUrl = null;
+    }
+
+    async function openEditDialog(id) {
+      try {
+        const goods = await getAllGoods();
+        const item = goods.find(g => g.id === id);
+        if (!item) { alert("グッズが見つからなかったよ。"); return; }
+        editingId = id;
+        document.getElementById("editName").value = item.name;
+        document.getElementById("editBuy").value = item.buy;
+        document.getElementById("editSell").value = item.sell ?? "";
+        document.getElementById("editPhoto").value = "";
+        document.getElementById("removeEditPhoto").checked = false;
+        clearEditPreviewUrl();
+        const preview = document.getElementById("editPreview");
+        preview.hidden = !item.photo;
+        document.getElementById("editNoPhoto").hidden = !!item.photo;
+        if (item.photo) {
+          editPreviewUrl = URL.createObjectURL(item.photo);
+          preview.src = editPreviewUrl;
+        } else {
+          preview.removeAttribute("src");
+        }
+        updateEditBalance();
+        document.getElementById("editDialog").showModal();
+      } catch (error) {
+        console.error(error);
+        alert("詳細を開けなかったよ。");
+      }
+    }
+
+    function updateEditBalance() {
+      const buy = Number(document.getElementById("editBuy").value);
+      const sell = Number(document.getElementById("editSell").value || 0);
+      document.getElementById("editBalance").textContent =
+        Number.isFinite(buy) && Number.isFinite(sell)
+          ? "実質負担額：" + (buy - sell).toLocaleString() + "円"
+          : "金額を確認してね";
+    }
+
+    async function saveEditedGoods() {
+      if (!editingId) return;
+      const name = document.getElementById("editName").value.trim();
+      const buyText = document.getElementById("editBuy").value;
+      const sellText = document.getElementById("editSell").value;
+      const buy = Number(buyText);
+      const sell = sellText === "" ? null : Number(sellText);
+      if (!name || buyText === "" || !Number.isFinite(buy) || buy < 0 ||
+          (sell !== null && (!Number.isFinite(sell) || sell < 0))) {
+        alert("グッズ名と金額を正しく入力してね。");
+        return;
+      }
+      const selectedPhoto = document.getElementById("editPhoto").files[0];
+      if (selectedPhoto && !selectedPhoto.type.startsWith("image/")) {
+        alert("画像ファイルを選んでね。");
+        return;
+      }
+      const button = document.getElementById("saveEditButton");
+      button.disabled = true;
+      try {
+        const goods = await getAllGoods();
+        const item = goods.find(g => g.id === editingId);
+        if (!item) throw new Error("編集対象が見つかりません");
+        const removePhoto = document.getElementById("removeEditPhoto").checked;
+        await putGoods({
+          ...item, name, buy, sell,
+          photo: selectedPhoto || (removePhoto ? null : item.photo)
+        });
+        document.getElementById("editDialog").close();
+        await renderGoods();
+      } catch (error) {
+        console.error(error);
+        alert("変更を保存できなかったよ。");
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    document.getElementById("saveEditButton").addEventListener("click", saveEditedGoods);
+    document.getElementById("closeEditButton").addEventListener("click", () => {
+      document.getElementById("editDialog").close();
+    });
+    document.getElementById("editDialog").addEventListener("close", () => {
+      editingId = null;
+      clearEditPreviewUrl();
+    });
+    document.getElementById("editBuy").addEventListener("input", updateEditBalance);
+    document.getElementById("editSell").addEventListener("input", updateEditBalance);
+
     async function init() {
       const button = document.getElementById("addButton");
 
@@ -319,6 +457,8 @@
         button.textContent = "登録する";
         button.disabled = false;
         button.addEventListener("click", addGoods);
+        document.getElementById("backupButton").disabled = false;
+        document.getElementById("restoreButton").disabled = false;
       } catch (error) {
         console.error(error);
         button.textContent = "読み込みに失敗";
@@ -515,22 +655,6 @@
     document.getElementById("restoreButton")
       .addEventListener("click", restoreGoods);
 
-    // データベースが開けたらボタンを有効化
-    async function enableBackupButtons() {
-      try {
-        if (!db) {
-          db = await openDatabase();
-        }
-
-        document.getElementById("backupButton").disabled = false;
-        document.getElementById("restoreButton").disabled = false;
-      } catch (error) {
-        console.error(error);
-      }
-    }
-
-    enableBackupButtons();
-    
     init();
   </script>
 </body>
