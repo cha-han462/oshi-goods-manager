@@ -22,8 +22,18 @@
       background: white;
       padding: 20px;
       border-radius: 12px;
-      margin-top: 20px;
+      margin: 20px 0;
       box-shadow: 0 2px 8px #00000012;
+    }
+
+    input {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      margin: 8px 0 16px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
     }
 
     button {
@@ -34,6 +44,16 @@
       padding: 12px 20px;
       cursor: pointer;
     }
+
+    .goods-item {
+      padding: 12px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .summary {
+      font-size: 18px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -41,15 +61,120 @@
   <p>お気に入りのグッズと思い出を記録しよう！</p>
 
   <div class="card">
+    <h2>収支サマリー</h2>
+    <p>購入合計：<span id="totalBuy">0</span>円</p>
+    <p>売却合計：<span id="totalSell">0</span>円</p>
+    <p class="summary">
+      実質負担額：<span id="balance">0</span>円
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>グッズを登録</h2>
+
+    <label>グッズ名</label>
+    <input type="text" id="goodsName" placeholder="例：オズ アクスタ">
+
+    <label>購入価格（円）</label>
+    <input type="number" id="buyPrice" placeholder="例：1760" min="0">
+
+    <label>売却価格（円・未売却なら空欄）</label>
+    <input type="number" id="sellPrice" placeholder="例：1190" min="0">
+
+    <button onclick="addGoods()">登録する</button>
+  </div>
+
+  <div class="card">
     <h2>マイコレクション</h2>
-    <p>ここにグッズの写真や情報が並ぶ予定です。</p>
-    <button onclick="showMessage()">グッズを登録する</button>
+    <div id="goodsList"></div>
   </div>
 
   <script>
-    function showMessage() {
-      alert("これからグッズ登録機能を作るよ！");
+    let goods = JSON.parse(
+      localStorage.getItem("oshiGoods") || "[]"
+    );
+
+    function addGoods() {
+      const name = document.getElementById("goodsName").value.trim();
+      const buyInput = document.getElementById("buyPrice").value;
+      const sellInput = document.getElementById("sellPrice").value;
+
+      if (!name || buyInput === "" || Number(buyInput) < 0) {
+        alert("グッズ名と正しい購入価格を入力してね！");
+        return;
+      }
+
+      if (sellInput !== "" && (Number(sellInput) < 0 || !Number.isFinite(Number(sellInput)))) {
+        alert("正しい売却価格を入力してね！");
+        return;
+      }
+
+      goods.push({
+        id: crypto.randomUUID(),
+        name: name,
+        buy: Number(buyInput),
+        sell: sellInput === "" ? null : Number(sellInput)
+      });
+
+      saveGoods();
+      renderGoods();
+
+      document.getElementById("goodsName").value = "";
+      document.getElementById("buyPrice").value = "";
+      document.getElementById("sellPrice").value = "";
     }
+
+    function saveGoods() {
+      localStorage.setItem("oshiGoods", JSON.stringify(goods));
+    }
+
+    function renderGoods() {
+      const list = document.getElementById("goodsList");
+      list.innerHTML = "";
+
+      let totalBuy = 0;
+      let totalSell = 0;
+
+      goods.forEach(item => {
+        totalBuy += item.buy;
+        totalSell += item.sell ?? 0;
+
+        const div = document.createElement("div");
+        div.className = "goods-item";
+
+        const name = document.createElement("strong");
+        name.textContent = item.name;
+
+        const details = document.createElement("p");
+        details.textContent =
+          "購入：" + item.buy.toLocaleString() + "円 ／ " +
+          (item.sell === null
+            ? "未売却"
+            : "売却：" + item.sell.toLocaleString() + "円");
+
+        const deleteButton = document.createElement("button");
+        deleteButton.textContent = "削除";
+        deleteButton.addEventListener("click", () => {
+          if (confirm("このグッズを削除する？")) {
+            goods = goods.filter(g => g.id !== item.id);
+            saveGoods();
+            renderGoods();
+          }
+        });
+
+        div.append(name, details, deleteButton);
+        list.appendChild(div);
+      });
+
+      document.getElementById("totalBuy").textContent =
+        totalBuy.toLocaleString();
+      document.getElementById("totalSell").textContent =
+        totalSell.toLocaleString();
+      document.getElementById("balance").textContent =
+        (totalBuy - totalSell).toLocaleString();
+    }
+
+    renderGoods();
   </script>
 </body>
 </html>
