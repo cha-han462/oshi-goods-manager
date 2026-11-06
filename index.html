@@ -13,11 +13,7 @@
       margin: 0;
       padding: 24px;
     }
-
-    h1 {
-      color: #db6697;
-    }
-
+    h1 { color: #db6697; }
     .card {
       background: white;
       padding: 20px;
@@ -25,7 +21,6 @@
       margin: 20px 0;
       box-shadow: 0 2px 8px #00000012;
     }
-
     input {
       display: block;
       width: 100%;
@@ -35,7 +30,6 @@
       border: 1px solid #ddd;
       border-radius: 8px;
     }
-
     button {
       background: #db6697;
       color: white;
@@ -44,16 +38,34 @@
       padding: 12px 20px;
       cursor: pointer;
     }
-
+    button:disabled { opacity: 0.5; }
+    .goods-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 16px;
+    }
     .goods-item {
-      padding: 12px 0;
-      border-bottom: 1px solid #eee;
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 12px;
+      padding: 12px;
+      overflow-wrap: anywhere;
     }
-
-    .summary {
-      font-size: 18px;
-      font-weight: bold;
+    .goods-item img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      border-radius: 8px;
     }
+    .placeholder {
+      aspect-ratio: 1;
+      background: #f6e9ef;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #999;
+    }
+    .summary { font-size: 18px; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -72,65 +84,149 @@
   <div class="card">
     <h2>グッズを登録</h2>
 
-    <label>グッズ名</label>
+    <label for="goodsName">グッズ名</label>
     <input type="text" id="goodsName" placeholder="例：オズ アクスタ">
 
-    <label>購入価格（円）</label>
-    <input type="number" id="buyPrice" placeholder="例：1760" min="0">
+    <label for="buyPrice">購入価格（円）</label>
+    <input type="number" id="buyPrice" min="0" placeholder="例：1760">
 
-    <label>売却価格（円・未売却なら空欄）</label>
-    <input type="number" id="sellPrice" placeholder="例：1190" min="0">
+    <label for="sellPrice">売却価格（未売却なら空欄）</label>
+    <input type="number" id="sellPrice" min="0" placeholder="例：1190">
 
-    <button onclick="addGoods()">登録する</button>
+    <label for="goodsPhoto">グッズの写真</label>
+    <input type="file" id="goodsPhoto" accept="image/*">
+
+    <button id="addButton" disabled>読み込み中...</button>
   </div>
 
   <div class="card">
     <h2>マイコレクション</h2>
-    <div id="goodsList"></div>
+    <div id="goodsList" class="goods-grid"></div>
   </div>
 
   <script>
-    let goods = JSON.parse(
-      localStorage.getItem("oshiGoods") || "[]"
-    );
+    const DB_NAME = "oshiGoodsDB";
+    const STORE_NAME = "goods";
+    let db;
+    let photoUrls = [];
 
-    function addGoods() {
+    function openDatabase() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+
+        request.onupgradeneeded = () => {
+          const database = request.result;
+          if (!database.objectStoreNames.contains(STORE_NAME)) {
+            database.createObjectStore(STORE_NAME, { keyPath: "id" });
+          }
+        };
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function getAllGoods() {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readonly");
+        const request = tx.objectStore(STORE_NAME).getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function putGoods(item) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        tx.objectStore(STORE_NAME).put(item);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    function removeGoods(id) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        tx.objectStore(STORE_NAME).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function migrateOldData() {
+      const oldData = JSON.parse(
+        localStorage.getItem("oshiGoods") || "[]"
+      );
+
+      const existing = await getAllGoods();
+      const existingIds = new Set(existing.map(item => item.id));
+
+      for (const item of oldData) {
+        if (!existingIds.has(item.id)) {
+          await putGoods({ ...item, photo: null });
+        }
+      }
+    }
+
+    async function addGoods() {
       const name = document.getElementById("goodsName").value.trim();
       const buyInput = document.getElementById("buyPrice").value;
       const sellInput = document.getElementById("sellPrice").value;
+      const photoInput = document.getElementById("goodsPhoto");
 
-      if (!name || buyInput === "" || Number(buyInput) < 0) {
+      if (!name || buyInput === "" ||
+          !Number.isFinite(Number(buyInput)) ||
+          Number(buyInput) < 0) {
         alert("グッズ名と正しい購入価格を入力してね！");
         return;
       }
 
-      if (sellInput !== "" && (Number(sellInput) < 0 || !Number.isFinite(Number(sellInput)))) {
+      if (sellInput !== "" &&
+          (!Number.isFinite(Number(sellInput)) ||
+          Number(sellInput) < 0)) {
         alert("正しい売却価格を入力してね！");
         return;
       }
 
-      goods.push({
-        id: crypto.randomUUID(),
-        name: name,
-        buy: Number(buyInput),
-        sell: sellInput === "" ? null : Number(sellInput)
-      });
+      const photo = photoInput.files[0] || null;
+      if (photo && !photo.type.startsWith("image/")) {
+        alert("画像ファイルを選んでね！");
+        return;
+      }
 
-      saveGoods();
-      renderGoods();
+      const button = document.getElementById("addButton");
+      button.disabled = true;
 
-      document.getElementById("goodsName").value = "";
-      document.getElementById("buyPrice").value = "";
-      document.getElementById("sellPrice").value = "";
+      try {
+        await putGoods({
+          id: crypto.randomUUID(),
+          name,
+          buy: Number(buyInput),
+          sell: sellInput === "" ? null : Number(sellInput),
+          photo
+        });
+
+        document.getElementById("goodsName").value = "";
+        document.getElementById("buyPrice").value = "";
+        document.getElementById("sellPrice").value = "";
+        photoInput.value = "";
+
+        await renderGoods();
+      } catch (error) {
+        console.error(error);
+        alert("保存に失敗したよ。空き容量などを確認してね。");
+      } finally {
+        button.disabled = false;
+      }
     }
 
-    function saveGoods() {
-      localStorage.setItem("oshiGoods", JSON.stringify(goods));
-    }
-
-    function renderGoods() {
+    async function renderGoods() {
+      const goods = await getAllGoods();
       const list = document.getElementById("goodsList");
-      list.innerHTML = "";
+
+      photoUrls.forEach(url => URL.revokeObjectURL(url));
+      photoUrls = [];
+      list.replaceChildren();
 
       let totalBuy = 0;
       let totalSell = 0;
@@ -142,7 +238,21 @@
         const div = document.createElement("div");
         div.className = "goods-item";
 
-        const name = document.createElement("strong");
+        if (item.photo) {
+          const img = document.createElement("img");
+          const url = URL.createObjectURL(item.photo);
+          photoUrls.push(url);
+          img.src = url;
+          img.alt = item.name;
+          div.appendChild(img);
+        } else {
+          const placeholder = document.createElement("div");
+          placeholder.className = "placeholder";
+          placeholder.textContent = "写真なし";
+          div.appendChild(placeholder);
+        }
+
+        const name = document.createElement("h3");
         name.textContent = item.name;
 
         const details = document.createElement("p");
@@ -154,11 +264,14 @@
 
         const deleteButton = document.createElement("button");
         deleteButton.textContent = "削除";
-        deleteButton.addEventListener("click", () => {
-          if (confirm("このグッズを削除する？")) {
-            goods = goods.filter(g => g.id !== item.id);
-            saveGoods();
-            renderGoods();
+        deleteButton.addEventListener("click", async () => {
+          if (!confirm("このグッズを削除する？")) return;
+          try {
+            await removeGoods(item.id);
+            await renderGoods();
+          } catch (error) {
+            console.error(error);
+            alert("削除に失敗したよ。");
           }
         });
 
@@ -174,7 +287,24 @@
         (totalBuy - totalSell).toLocaleString();
     }
 
-    renderGoods();
+    async function init() {
+      const button = document.getElementById("addButton");
+
+      try {
+        db = await openDatabase();
+        await migrateOldData();
+        await renderGoods();
+        button.textContent = "登録する";
+        button.disabled = false;
+        button.addEventListener("click", addGoods);
+      } catch (error) {
+        console.error(error);
+        button.textContent = "読み込みに失敗";
+        alert("データベースを開けなかったよ。");
+      }
+    }
+
+    init();
   </script>
 </body>
 </html>
