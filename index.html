@@ -5,6 +5,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>推し活グッズ収支管理</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hina+Mincho&family=Kaisei+Decol&family=Kiwi+Maru&family=Shippori+Mincho&family=Yomogi&display=swap" rel="stylesheet">
   <style>
     body {
       font-family: sans-serif;
@@ -75,12 +78,67 @@
     .secondary-button { background: #777; }
     #editPreview { width: 100%; max-height: 260px; object-fit: contain; border-radius: 8px; }
     .hint { font-size: 13px; color: #777; }
+
+    /* STEP 10: テーマ設定。色はCSS変数で一括管理 */
+    :root { --page-bg:#faf6f4; --text-color:#76515e; --accent:#b8879a; --card-bg:#fffdfb; --border-color:#e6cfd6; --soft-bg:#f5eaed; --heading-font:"Hina Mincho",serif; --body-font:"Hina Mincho",serif; }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { background:var(--page-bg); color:var(--text-color); font-family:var(--body-font); margin:0; padding:0 20px 45px; line-height:1.65; transition:background-color .2s,color .2s; }
+    h1,h2,h3 { font-family:var(--heading-font); font-weight:500; }
+    h1 { color:var(--text-color); font-size:clamp(26px,3.5vw,40px); letter-spacing:.075em; margin:0; }
+    h2 { font-size:23px; margin:0 0 16px; padding-bottom:10px; border-bottom:1px solid var(--border-color); }
+    h3 { font-size:18px; }
+    .site-header { position:relative; text-align:center; padding:40px 0 22px; max-width:1150px; margin:auto; }
+    .site-header p { margin:6px 0 0; }
+    .header-mark { color:var(--accent); font-size:19px; letter-spacing:.1em; }
+    .settings-launch { position:absolute; right:0; top:43px; }
+    .layout { display:grid; grid-template-columns:minmax(215px,270px) minmax(0,1fr); gap:20px; max-width:1150px; margin:0 auto; align-items:start; }
+    .sidebar, .main-column { min-width:0; }
+    .card { background:var(--card-bg); border:1px solid var(--border-color); border-radius:18px; padding:22px; margin:0 0 20px; box-shadow:0 4px 16px #5e3b4610; }
+    .summary { color:var(--text-color); background:var(--soft-bg); padding:8px; border-radius:10px; }
+    input:not([type=checkbox]), select { font:inherit; color:var(--text-color); background:#fff; border:1px solid var(--border-color); }
+    button { font:inherit; background:var(--accent); border:1px solid var(--accent); border-radius:10px; }
+    button:hover:not(:disabled) { filter:brightness(.95); }
+    button:focus-visible, input:focus-visible, select:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+    .secondary-button, .outline-button { background:transparent; color:var(--text-color); border:1px solid var(--border-color); }
+    .goods-grid { grid-template-columns:repeat(auto-fill,minmax(165px,1fr)); }
+    .goods-item { border-color:var(--border-color); background:var(--card-bg); box-shadow:0 3px 12px #5e3b460c; }
+    .goods-item h3 { margin:8px 0 4px; }
+    .goods-item p { font-size:14px; }
+    .goods-item button:not(.goods-photo-button) { padding:7px 10px; margin:2px 3px 2px 0; font-size:13px; }
+    .goods-photo-button { border:0; border-radius:8px; }
+    .goods-photo-button:focus-visible { outline-color:var(--accent); }
+    .placeholder { background:var(--soft-bg); color:var(--text-color); }
+    dialog { color:var(--text-color); background:var(--card-bg); border:1px solid var(--border-color); }
+    .settings-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; margin-bottom:14px; }
+    .preset-button { width:100%; padding:8px 2px; color:var(--text-color); background:var(--card-bg); border:1px solid var(--border-color); font-size:12px; }
+    .preset-swatch { display:block; width:28px; height:28px; border-radius:50%; border:1px solid #aaa6; margin:0 auto 4px; }
+    .preset-button[aria-pressed=true] { outline:2px solid var(--accent); outline-offset:1px; }
+    .settings-fields { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+    .settings-fields label { display:block; font-size:13px; }
+    .settings-fields input[type=color] { height:40px; padding:4px; cursor:pointer; }
+    #settingsDialog { width:min(540px,calc(100% - 28px)); }
+    #settingsDialog fieldset { border:1px solid var(--border-color); border-radius:10px; margin:14px 0; padding:12px; }
+    #settingsDialog legend { padding:0 5px; }
+    #settingsDialog select { width:100%; padding:10px; border-radius:8px; }
+    .settings-preview { padding:18px; border:1px solid var(--border-color); border-radius:12px; text-align:center; background:var(--page-bg); margin:15px 0; }
+    .settings-preview strong { font-family:var(--heading-font); font-size:22px; font-weight:500; }
+    body[data-decoration=ribbon] .header-mark::after { content:' ୨୧'; }
+    body[data-decoration=lace] .card { border-style:double; border-width:3px; }
+    body[data-decoration=lace] .header-mark::after { content:' ✧ ୨୧ ✧'; }
+    @media (max-width:760px) { .layout { grid-template-columns:1fr; } .site-header { padding-top:78px; } .settings-launch { top:20px; } .card { padding:17px; } .settings-grid { grid-template-columns:repeat(3,1fr); } }
   </style>
 </head>
 <body>
-  <h1>推し活グッズ収支管理</h1>
-  <p>お気に入りのグッズと思い出を記録しよう！</p>
+  <header class="site-header">
+    <div class="header-mark" aria-hidden="true">— ♡ —</div>
+    <h1>推し活グッズ収支管理</h1>
+    <p>お気に入りのグッズと思い出を記録しよう！</p>
+    <button type="button" id="openSettings" class="settings-launch outline-button">⚙ デザイン設定</button>
+  </header>
 
+  <div class="layout">
+    <aside class="sidebar">
   <div class="card">
     <h2>収支サマリー</h2>
     <p>購入合計：<span id="totalBuy">0</span>円</p>
@@ -90,6 +148,8 @@
     </p>
   </div>
 
+    </aside>
+    <main class="main-column">
   <div class="card">
     <h2>グッズを登録</h2>
 
@@ -135,6 +195,9 @@
     </button>
   </div>
   
+    </main>
+  </div>
+
   <dialog id="editDialog" aria-labelledby="editTitle">
     <h2 id="editTitle">グッズ詳細・編集</h2>
     <img id="editPreview" alt="グッズの写真" hidden>
@@ -153,6 +216,41 @@
       <button id="saveEditButton">変更を保存</button>
       <button id="closeEditButton" class="secondary-button">閉じる</button>
     </div>
+  </dialog>
+
+
+  <dialog id="settingsDialog" aria-labelledby="settingsTitle">
+    <h2 id="settingsTitle">୨୧ デザイン設定</h2>
+    <p class="hint">好きな色とフォントでコレクションを着せ替えできます。</p>
+    <fieldset><legend>カラーテーマ</legend><div class="settings-grid" id="themePresets"></div></fieldset>
+    <fieldset><legend>好きな色に変更</legend>
+      <div class="settings-fields">
+        <label>背景色<input type="color" id="themeBg" value="#faf6f4"></label>
+        <label>文字色<input type="color" id="themeText" value="#76515e"></label>
+        <label>ボタン色<input type="color" id="themeAccent" value="#b8879a"></label>
+      </div>
+    </fieldset>
+    <label for="themeFont">フォント</label>
+    <select id="themeFont">
+      <option value="hina">ひな明朝（デフォルト）</option>
+      <option value="decol">解星デコール</option>
+      <option value="kiwi">キウイ丸</option>
+      <option value="shippori">しっぽり明朝</option>
+      <option value="yomogi">よもぎ</option>
+    </select>
+    <label for="themeDecoration">装飾</label>
+    <select id="themeDecoration">
+      <option value="simple">シンプル</option>
+      <option value="ribbon">リボン</option>
+      <option value="lace">レース風</option>
+    </select>
+    <div class="settings-preview"><span class="header-mark">♡ My Collection ♡</span><div><strong>わたしの宝物</strong></div><span>お気に入りを大切に記録しよう</span></div>
+    <div class="dialog-actions">
+      <button type="button" id="saveTheme">このデザインを保存</button>
+      <button type="button" id="resetTheme" class="outline-button">初期設定に戻す</button>
+      <button type="button" id="closeSettings" class="outline-button">閉じる</button>
+    </div>
+    <p class="hint">設定はこのブラウザに保存されます。グッズのJSONバックアップには含まれません。</p>
   </dialog>
 
   <script>
@@ -654,6 +752,90 @@
 
     document.getElementById("restoreButton")
       .addEventListener("click", restoreGoods);
+
+
+    // STEP 10: デザイン設定。グッズデータとは独立して保存する。
+    const THEME_KEY = "oshiGoodsThemeV1";
+    const THEME_PRESETS = {
+      classic: {name:"クラシカル",bg:"#faf6f4",text:"#76515e",accent:"#b8879a"},
+      rose: {name:"ローズ",bg:"#f9e9ee",text:"#804a61",accent:"#ca7797"},
+      blue: {name:"サックス",bg:"#eaf3f8",text:"#4d6375",accent:"#83a8c6"},
+      lavender: {name:"ラベンダー",bg:"#f1ecf8",text:"#695779",accent:"#a18cbd"},
+      ivory: {name:"アイボリー",bg:"#f7f1e7",text:"#6e5b4b",accent:"#b6a081"}
+    };
+    const FONT_NAMES = {
+      hina:'"Hina Mincho",serif',decol:'"Kaisei Decol",serif',
+      kiwi:'"Kiwi Maru",serif',shippori:'"Shippori Mincho",serif',
+      yomogi:'"Yomogi",cursive'
+    };
+    const DEFAULT_THEME = {...THEME_PRESETS.classic,font:"hina",decoration:"simple",preset:"classic"};
+    let currentTheme = {...DEFAULT_THEME};
+    let savedTheme = {...DEFAULT_THEME};
+    const isHex = value => typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
+    function normalizeTheme(data) {
+      const t = {...DEFAULT_THEME};
+      if (!data || typeof data !== "object") return t;
+      for (const key of ["bg","text","accent"]) if (isHex(data[key])) t[key] = data[key];
+      if (Object.hasOwn(FONT_NAMES,data.font)) t.font = data.font;
+      if (["simple","ribbon","lace"].includes(data.decoration)) t.decoration = data.decoration;
+      t.preset = typeof data.preset === "string" ? data.preset : "";
+      return t;
+    }
+    function applyTheme(theme) {
+      currentTheme = normalizeTheme(theme);
+      const root = document.documentElement.style;
+      root.setProperty("--page-bg",currentTheme.bg);
+      root.setProperty("--text-color",currentTheme.text);
+      root.setProperty("--accent",currentTheme.accent);
+      root.setProperty("--heading-font",FONT_NAMES[currentTheme.font]);
+      root.setProperty("--body-font",FONT_NAMES[currentTheme.font]);
+      root.setProperty("--border-color",currentTheme.accent + "66");
+      root.setProperty("--soft-bg",currentTheme.accent + "22");
+      document.body.dataset.decoration = currentTheme.decoration;
+      for (const [id,key] of [["themeBg","bg"],["themeText","text"],["themeAccent","accent"],["themeFont","font"],["themeDecoration","decoration"]]) {
+        document.getElementById(id).value = currentTheme[key];
+      }
+      document.querySelectorAll(".preset-button").forEach(button => {
+        button.setAttribute("aria-pressed",String(button.dataset.preset === currentTheme.preset));
+      });
+    }
+    function initializeTheme() {
+      const container = document.getElementById("themePresets");
+      for (const [id,preset] of Object.entries(THEME_PRESETS)) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "preset-button";
+        button.dataset.preset = id;
+        const swatch = document.createElement("span");
+        swatch.className = "preset-swatch";
+        swatch.style.background = preset.bg;
+        const label = document.createElement("span");
+        label.textContent = preset.name;
+        button.append(swatch,label);
+        button.addEventListener("click",() => applyTheme({...currentTheme,...preset,preset:id}));
+        container.appendChild(button);
+      }
+      try { savedTheme = normalizeTheme(JSON.parse(localStorage.getItem(THEME_KEY))); }
+      catch (error) { console.warn("テーマ設定を読み込めませんでした",error); }
+      applyTheme(savedTheme);
+      document.getElementById("openSettings").addEventListener("click",() => document.getElementById("settingsDialog").showModal());
+      document.getElementById("closeSettings").addEventListener("click",() => document.getElementById("settingsDialog").close());
+      document.getElementById("settingsDialog").addEventListener("close",() => applyTheme(savedTheme));
+      for (const [id,key] of [["themeBg","bg"],["themeText","text"],["themeAccent","accent"],["themeFont","font"],["themeDecoration","decoration"]]) {
+        document.getElementById(id).addEventListener("input",event => {
+          applyTheme({...currentTheme,[key]:event.target.value,preset:key === "bg" || key === "text" || key === "accent" ? "" : currentTheme.preset});
+        });
+      }
+      document.getElementById("saveTheme").addEventListener("click",() => {
+        try {
+          localStorage.setItem(THEME_KEY,JSON.stringify(currentTheme));
+          savedTheme = {...currentTheme};
+          document.getElementById("settingsDialog").close();
+        } catch (error) { console.error(error); alert("設定を保存できなかったよ。"); }
+      });
+      document.getElementById("resetTheme").addEventListener("click",() => applyTheme(DEFAULT_THEME));
+    }
+    initializeTheme();
 
     init();
   </script>
