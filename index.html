@@ -104,6 +104,28 @@
     <div id="goodsList" class="goods-grid"></div>
   </div>
 
+  <div class="card">
+    <h2>データのバックアップ</h2>
+    <p>写真とグッズ情報をまとめて保存できます。</p>
+
+    <button id="backupButton" disabled>
+      バックアップを作成
+    </button>
+
+    <h3>バックアップから復元</h3>
+    <p>保存したJSONファイルを選択してください。</p>
+
+    <input
+      type="file"
+      id="restoreFile"
+      accept=".json,application/json"
+    >
+
+    <button id="restoreButton" disabled>
+      データを復元
+    </button>
+  </div>
+  
   <script>
     const DB_NAME = "oshiGoodsDB";
     const STORE_NAME = "goods";
@@ -304,6 +326,211 @@
       }
     }
 
+
+    // 写真をJSONに入れられる文字列に変換
+    function fileToDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // 文字列から画像データに戻す
+    async function dataURLToBlob(dataURL) {
+      if (typeof dataURL !== "string" ||
+          !/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(dataURL)) {
+        throw new Error("画像データの形式が不正です");
+      }
+
+      const response = await fetch(dataURL);
+      if (!response.ok) {
+        throw new Error("画像データを読み込めません");
+      }
+
+      return await response.blob();
+    }
+
+    // バックアップ作成
+    async function backupGoods() {
+      const button = document.getElementById("backupButton");
+      button.disabled = true;
+
+      try {
+        const goods = await getAllGoods();
+        const records = [];
+
+        for (const item of goods) {
+          records.push({
+            id: item.id,
+            name: item.name,
+            buy: item.buy,
+            sell: item.sell,
+            photo: item.photo
+              ? await fileToDataURL(item.photo)
+              : null
+          });
+        }
+
+        const backup = {
+          app: "oshi-goods-manager",
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          goods: records
+        };
+
+        const blob = new Blob(
+          [JSON.stringify(backup)],
+          { type: "application/json" }
+        );
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download =
+          "oshi-goods-backup-" +
+          new Date().toISOString().slice(0, 10) +
+          ".json";
+
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+
+        alert("バックアップを作成したよ！");
+      } catch (error) {
+        console.error(error);
+        alert("バックアップの作成に失敗したよ。");
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    // バックアップから復元
+    async function restoreGoods() {
+      const input = document.getElementById("restoreFile");
+      const file = input.files[0];
+
+      if (!file) {
+        alert("バックアップファイルを選んでね！");
+        return;
+      }
+
+      const button = document.getElementById("restoreButton");
+      button.disabled = true;
+
+      try {
+        const backup = JSON.parse(await file.text());
+
+        if (
+          backup.app !== "oshi-goods-manager" ||
+          backup.version !== 1 ||
+          !Array.isArray(backup.goods)
+        ) {
+          throw new Error("対応していないバックアップです");
+        }
+
+        const restored = [];
+
+        for (const item of backup.goods) {
+          if (
+            !item ||
+            typeof item.id !== "string" ||
+            !item.id ||
+            typeof item.name !== "string" ||
+            !item.name.trim() ||
+            typeof item.buy !== "number" ||
+            !Number.isFinite(item.buy) ||
+            item.buy < 0 ||
+            !(item.sell === null ||
+              (typeof item.sell === "number" &&
+               Number.isFinite(item.sell) &&
+               item.sell >= 0))
+          ) {
+            throw new Error("グッズ情報の形式が不正です");
+          }
+
+          restored.push({
+            id: item.id,
+            name: item.name,
+            buy: item.buy,
+            sell: item.sell,
+            photo: item.photo == null
+              ? null
+              : await dataURLToBlob(item.photo)
+          });
+        }
+
+        const existing = await getAllGoods();
+        const existingIds = new Set(
+          existing.map(item => item.id)
+        );
+
+        const newItems = restored.filter(
+          item => !existingIds.has(item.id)
+        );
+
+        if (!confirm(
+          "バックアップ内：" + restored.length + "件\n" +
+          "新しく追加：" + newItems.length + "件\n" +
+          "既存データは削除・上書きしません。\n\n" +
+          "復元を実行する？"
+        )) {
+          return;
+        }
+
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, "readwrite");
+          const store = tx.objectStore(STORE_NAME);
+
+          for (const item of newItems) {
+            store.add(item);
+          }
+
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+          tx.onabort = () => reject(
+            tx.error || new Error("復元が中断されました")
+          );
+        });
+
+        await renderGoods();
+        input.value = "";
+
+        alert(newItems.length + "件のグッズを復元したよ！");
+      } catch (error) {
+        console.error(error);
+        alert("復元に失敗したよ：" + error.message);
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    // ボタンに処理を登録
+    document.getElementById("backupButton")
+      .addEventListener("click", backupGoods);
+
+    document.getElementById("restoreButton")
+      .addEventListener("click", restoreGoods);
+
+    // データベースが開けたらボタンを有効化
+    async function enableBackupButtons() {
+      try {
+        if (!db) {
+          db = await openDatabase();
+        }
+
+        document.getElementById("backupButton").disabled = false;
+        document.getElementById("restoreButton").disabled = false;
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    enableBackupButtons();
+    
     init();
   </script>
 </body>
