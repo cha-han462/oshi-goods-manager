@@ -123,9 +123,6 @@
     #settingsDialog select { width:100%; padding:10px; border-radius:8px; }
     .settings-preview { padding:18px; border:1px solid var(--border-color); border-radius:12px; text-align:center; background:var(--page-bg); margin:15px 0; }
     .settings-preview strong { font-family:var(--heading-font); font-size:22px; font-weight:500; }
-    body[data-decoration=ribbon] .header-mark::after { content:' ୨୧'; }
-    body[data-decoration=lace] .card { border-style:double; border-width:3px; }
-    body[data-decoration=lace] .header-mark::after { content:' ✧ ୨୧ ✧'; }
     @media (max-width:760px) { .layout { grid-template-columns:1fr; } .site-header { padding-top:78px; } .settings-launch { top:20px; } .card { padding:17px; } .settings-grid { grid-template-columns:repeat(3,1fr); } }
 
     /* STEP 11: 左サイドバーによる画面切り替え */
@@ -180,6 +177,105 @@
     .finance-table tfoot th,.finance-table tfoot td {font-weight:bold;}
     .finance-table tbody tr:hover {background:var(--soft-bg);}
     .finance-empty {text-align:center !important;}
+
+    /* 星ときらめき：既存の寸法・色・文字・写真を保つ装飾のみ */
+    body[data-decoration=starlight] { --star-gold:#b59a61; --star:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2028%2028%22%20fill%3D%22none%22%20stroke%3D%22%23b59a61%22%20stroke-width%3D%221%22%3E%3Cpath%20d%3D%22M14%202%2017%2011%2026%2014%2017%2017%2014%2026%2011%2017%202%2014%2011%2011Z%22%2F%3E%3Cpath%20d%3D%22M14%207v14M7%2014h14%22%20opacity%3D%22.5%22%2F%3E%3C%2Fsvg%3E"); --constellation:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20140%2075%22%20fill%3D%22none%22%20stroke%3D%22%23b59a61%22%3E%3Cpath%20d%3D%22m8%2054%2024-32%2036%2016%2025-25%2034%2038%22%20stroke-dasharray%3D%222%205%22%20opacity%3D%22.65%22%2F%3E%3Ccircle%20cx%3D%228%22%20cy%3D%2254%22%20r%3D%222%22%2F%3E%3Ccircle%20cx%3D%2268%22%20cy%3D%2238%22%20r%3D%222%22%2F%3E%3Ccircle%20cx%3D%2293%22%20cy%3D%2213%22%20r%3D%222%22%2F%3E%3Cpath%20d%3D%22m32%2014%202%206%206%202-6%202-2%206-2-6-6-2%206-2Z%22%2F%3E%3Cpath%20d%3D%22M112%2012a13%2013%200%201%200%2015%2019%2013%2013%200%200%201-15-19Z%22%2F%3E%3C%2Fsvg%3E"); }
+    body[data-decoration=starlight] .site-header::before,
+    body[data-decoration=starlight] .site-header::after {
+      content:""; position:absolute; top:35px; width:125px; height:70px;
+      background:var(--constellation) center/contain no-repeat; pointer-events:none; opacity:.8;
+    }
+    body[data-decoration=starlight] .site-header::before {left:5px;}
+    body[data-decoration=starlight] .site-header::after {right:5px;transform:scaleX(-1);}
+    body[data-decoration=starlight] .site-header .header-mark {position:relative;color:transparent;}
+    body[data-decoration=starlight] .site-header .header-mark::after {
+      content:"— ✧ —";position:absolute;inset:0;color:var(--star-gold);pointer-events:none;
+    }
+    body[data-decoration=starlight] .card,
+    body[data-decoration=starlight] .goods-item,
+    body[data-decoration=starlight] .settings-preview {position:relative;}
+    body[data-decoration=starlight] .card::before,
+    body[data-decoration=starlight] .settings-preview::before {
+      content:"";position:absolute;inset:6px;border:1px solid #b59a614a;border-radius:13px;pointer-events:none;
+      background:var(--star) right 5px top 5px/18px 18px no-repeat,
+                 var(--star) left 5px bottom 5px/14px 14px no-repeat;
+    }
+    body[data-decoration=starlight] .card h2 {position:relative;}
+    body[data-decoration=starlight] .card h2::after {
+      content:"";position:absolute;right:2px;bottom:-7px;width:14px;height:14px;
+      background:var(--star) center/contain no-repeat;pointer-events:none;
+    }
+    body[data-decoration=starlight] .goods-item::before,
+    body[data-decoration=starlight] .goods-item::after {
+      content:"";position:absolute;width:16px;height:16px;pointer-events:none;z-index:1;
+      background:var(--star) center/contain no-repeat;
+    }
+    body[data-decoration=starlight] .goods-item::before {left:-5px;top:-5px;}
+    body[data-decoration=starlight] .goods-item::after {right:-5px;bottom:-5px;}
+    body[data-decoration=starlight] .goods-item {transition:box-shadow .2s,border-color .2s;}
+    body[data-decoration=starlight] .goods-item:hover,
+    body[data-decoration=starlight] .goods-item:focus-within {
+      border-color:var(--star-gold);box-shadow:0 0 14px #b59a6138;
+    }
+    body[data-decoration=starlight] .navigation-sidebar {
+      background-image:var(--constellation);background-position:right 12px bottom 65px;
+      background-repeat:no-repeat;background-size:95px 52px;
+    }
+    @media(max-width:900px) {
+      body[data-decoration=starlight] .site-header::before,
+      body[data-decoration=starlight] .site-header::after {width:60px;height:40px;top:4px;}
+    }
+    @media(max-width:760px) {body[data-decoration=starlight] .navigation-sidebar {background-image:none;}}
+    @media(prefers-reduced-motion:reduce) {body[data-decoration=starlight] .goods-item {transition:none;}}
+
+    /* リボン・レース：推し色に追従する線画。サイズや余白は変更しない。 */
+    body[data-decoration=ribbon], body[data-decoration=lace] {
+      --ribbon-art: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2048%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.4%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M29%2018C20%205%205%204%207%2015c1%2010%2015%209%2022%205m6-2C44%205%2059%204%2057%2015c-1%2010-15%209-22%205M28%2021l-9%2020%208-3%204%205%202-21m2-1%2011%2020-8-3-4%205-1-21%22%2F%3E%3Crect%20x%3D%2228%22%20y%3D%2215%22%20width%3D%228%22%20height%3D%229%22%20rx%3D%223%22%2F%3E%3Cpath%20d%3D%22m13%2013%2013%205m25-5-13%205%22%20opacity%3D%22.6%22%2F%3E%3C%2Fsvg%3E"); --lace-art: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2028%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.4%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M0%203h32M0%207h32M0%207c0%2019%2032%2019%2032%200%22%2F%3E%3Cpath%20d%3D%22M5%208c0%2012%2022%2012%2022%200%22%20stroke-dasharray%3D%221%203%22%2F%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2225%22%20r%3D%221%22%2F%3E%3Cpath%20d%3D%22M16%207v5m-6-5%202%205m10-5-2%205%22%2F%3E%3C%2Fsvg%3E"); --lace-corner: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.4%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2057V5h52M10%2057V10h47%22%2F%3E%3Cpath%20d%3D%22M10%2013c17%200%2017%2016%200%2016m0%200c17%200%2017%2016%200%2016m3-35c0%2017%2016%2017%2016%200m0%200c0%2017%2016%2017%2016%200%22%2F%3E%3Cpath%20d%3D%22M24%2024c23-3%2019%2019%200%200Z%22%2F%3E%3Ccircle%20cx%3D%2231%22%20cy%3D%2240%22%20r%3D%221.5%22%2F%3E%3Ccircle%20cx%3D%2240%22%20cy%3D%2231%22%20r%3D%221.5%22%2F%3E%3C%2Fsvg%3E");
+    }
+    body:is([data-decoration=ribbon],[data-decoration=lace]) :is(.card,.goods-item,.settings-preview) {position:relative;}
+    body:is([data-decoration=ribbon],[data-decoration=lace]) .site-header .header-mark {position:relative;color:transparent;}
+    body:is([data-decoration=ribbon],[data-decoration=lace]) .site-header .header-mark::after {
+      content:"";position:absolute;inset:0;pointer-events:none;background:var(--accent);
+      -webkit-mask:var(--ribbon-art) center/42px 31px no-repeat;mask:var(--ribbon-art) center/42px 31px no-repeat;
+    }
+    body[data-decoration=ribbon] :is(.card,.settings-preview)::before {
+      content:"";position:absolute;inset:6px;border:1px solid var(--border-color);border-radius:13px;pointer-events:none;
+    }
+    body[data-decoration=ribbon] :is(.card,.settings-preview)::after {
+      content:"";position:absolute;right:14px;top:-11px;width:44px;height:34px;background:var(--accent);
+      -webkit-mask:var(--ribbon-art) center/contain no-repeat;mask:var(--ribbon-art) center/contain no-repeat;pointer-events:none;
+    }
+    body[data-decoration=ribbon] .goods-item::before {
+      content:"";position:absolute;left:-9px;top:-10px;width:35px;height:27px;background:var(--accent);
+      -webkit-mask:var(--ribbon-art) center/contain no-repeat;mask:var(--ribbon-art) center/contain no-repeat;
+      transform:rotate(-22deg);pointer-events:none;z-index:1;
+    }
+    body[data-decoration=ribbon] .card h2 {
+      border-image:linear-gradient(90deg,var(--accent),var(--border-color),transparent) 1;
+    }
+    body[data-decoration=lace] .site-header .header-mark::after {
+      -webkit-mask:var(--lace-art) center/23px 20px repeat-x;mask:var(--lace-art) center/23px 20px repeat-x;
+      width:92px;margin:auto;opacity:.8;
+    }
+    body[data-decoration=lace] :is(.card,.settings-preview)::before,
+    body[data-decoration=lace] :is(.card,.settings-preview)::after {
+      content:"";position:absolute;left:18px;right:18px;height:14px;background:var(--accent);opacity:.55;
+      -webkit-mask:var(--lace-art) top left/18px 14px repeat-x;mask:var(--lace-art) top left/18px 14px repeat-x;pointer-events:none;
+    }
+    body[data-decoration=lace] :is(.card,.settings-preview)::before {top:4px;}
+    body[data-decoration=lace] :is(.card,.settings-preview)::after {bottom:4px;transform:rotate(180deg);}
+    body[data-decoration=lace] .goods-item::before,
+    body[data-decoration=lace] .goods-item::after {
+      content:"";position:absolute;width:25px;height:25px;background:var(--accent);opacity:.8;
+      -webkit-mask:var(--lace-corner) center/contain no-repeat;mask:var(--lace-corner) center/contain no-repeat;pointer-events:none;z-index:1;
+    }
+    body[data-decoration=lace] .goods-item::before {top:1px;left:1px;}
+    body[data-decoration=lace] .goods-item::after {bottom:1px;right:1px;transform:rotate(180deg);}
+    @media(max-width:760px) {
+      body[data-decoration=lace] :is(.card,.settings-preview)::before,
+      body[data-decoration=lace] :is(.card,.settings-preview)::after {height:10px;-webkit-mask-size:14px 10px;mask-size:14px 10px;}
+      body[data-decoration=lace] .goods-item::before,body[data-decoration=lace] .goods-item::after {width:22px;height:22px;}
+    }
   </style>
 </head>
 <body>
@@ -340,6 +436,7 @@
       <option value="simple">シンプル</option>
       <option value="ribbon">リボン</option>
       <option value="lace">レース風</option>
+      <option value="starlight">星ときらめき</option>
     </select>
     <div class="settings-preview"><span class="header-mark">♡ My Collection ♡</span><div><strong>わたしの宝物</strong></div><span>お気に入りを大切に記録しよう</span></div>
     <div class="dialog-actions">
@@ -961,7 +1058,7 @@
       kiwi:'"Kiwi Maru",serif',shippori:'"Shippori Mincho",serif',
       yomogi:'"Yomogi",cursive'
     };
-    const DEFAULT_THEME = {...THEME_PRESETS.classic,font:"hina",decoration:"simple",preset:"classic"};
+    const DEFAULT_THEME = {...THEME_PRESETS.classic,font:"hina",decoration:"starlight",preset:"classic"};
     let currentTheme = {...DEFAULT_THEME};
     let savedTheme = {...DEFAULT_THEME};
     const isHex = value => typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
@@ -970,7 +1067,7 @@
       if (!data || typeof data !== "object") return t;
       for (const key of ["bg","text","accent"]) if (isHex(data[key])) t[key] = data[key];
       if (Object.hasOwn(FONT_NAMES,data.font)) t.font = data.font;
-      if (["simple","ribbon","lace"].includes(data.decoration)) t.decoration = data.decoration;
+      if (["simple","ribbon","lace","starlight"].includes(data.decoration)) t.decoration = data.decoration;
       t.preset = typeof data.preset === "string" ? data.preset : "";
       return t;
     }
