@@ -127,6 +127,28 @@
     body[data-decoration=lace] .card { border-style:double; border-width:3px; }
     body[data-decoration=lace] .header-mark::after { content:' ✧ ୨୧ ✧'; }
     @media (max-width:760px) { .layout { grid-template-columns:1fr; } .site-header { padding-top:78px; } .settings-launch { top:20px; } .card { padding:17px; } .settings-grid { grid-template-columns:repeat(3,1fr); } }
+
+    /* STEP 11: 左サイドバーによる画面切り替え */
+    .tab-layout { grid-template-columns:minmax(210px,240px) minmax(0,1fr); gap:24px; }
+    .navigation-sidebar { position:sticky; top:22px; background:var(--soft-bg); border:1px solid var(--border-color); border-radius:18px; padding:15px; display:flex; flex-direction:column; gap:22px; min-height:360px; }
+    .side-navigation { display:flex; flex-direction:column; gap:7px; }
+    .nav-tab { width:100%; text-align:left; display:flex; align-items:center; gap:11px; padding:13px 12px; background:transparent; color:var(--text-color); border:1px solid transparent; border-radius:11px; line-height:1.4; }
+    .nav-tab:hover:not(:disabled) { background:var(--card-bg); }
+    .nav-tab.is-active { background:var(--card-bg); color:var(--text-color); border-color:var(--border-color); box-shadow:0 2px 8px #5e3b460c; font-weight:bold; }
+    .nav-symbol { width:21px; text-align:center; font-size:19px; color:var(--accent); flex-shrink:0; }
+    .sidebar-settings { width:100%; margin-top:auto; font-size:14px; padding:11px 8px; }
+    .tab-panel[hidden] { display:none !important; }
+    .tab-panel > .card { margin:0; min-height:320px; }
+    @media (max-width:760px) {
+      .tab-layout { grid-template-columns:minmax(0,1fr); gap:14px; }
+      .navigation-sidebar { position:static; min-height:0; padding:10px; gap:10px; }
+      .side-navigation { flex-direction:row; overflow-x:auto; gap:6px; padding-bottom:4px; scrollbar-width:thin; }
+      .nav-tab { flex:0 0 auto; width:auto; white-space:nowrap; padding:9px 10px; font-size:13px; }
+      .nav-symbol { width:auto; font-size:15px; }
+      .sidebar-settings { align-self:flex-end; width:auto; margin:0; padding:7px 10px; }
+      .tab-panel > .card { min-height:0; }
+      .site-header { padding-top:30px; }
+    }
   </style>
 </head>
 <body>
@@ -134,22 +156,26 @@
     <div class="header-mark" aria-hidden="true">— ♡ —</div>
     <h1>推し活グッズ収支管理</h1>
     <p>お気に入りのグッズと思い出を記録しよう！</p>
-    <button type="button" id="openSettings" class="settings-launch outline-button">⚙ デザイン設定</button>
   </header>
 
-  <div class="layout">
-    <aside class="sidebar">
-  <div class="card">
-    <h2>収支サマリー</h2>
-    <p>購入合計：<span id="totalBuy">0</span>円</p>
-    <p>売却合計：<span id="totalSell">0</span>円</p>
-    <p class="summary">
-      実質負担額：<span id="balance">0</span>円
-    </p>
-  </div>
-
+  <div class="layout tab-layout">
+    <aside class="sidebar navigation-sidebar">
+      <nav class="side-navigation" aria-label="メインメニュー" role="tablist">
+        <button type="button" class="nav-tab is-active" data-tab="collection" role="tab" aria-selected="true" aria-controls="panel-collection" id="tab-collection"><span class="nav-symbol" aria-hidden="true">▦</span><span>マイコレクション</span></button>
+        <button type="button" class="nav-tab" data-tab="register" role="tab" aria-selected="false" aria-controls="panel-register" id="tab-register"><span class="nav-symbol" aria-hidden="true">＋</span><span>グッズを登録</span></button>
+        <button type="button" class="nav-tab" data-tab="summary" role="tab" aria-selected="false" aria-controls="panel-summary" id="tab-summary"><span class="nav-symbol" aria-hidden="true">◷</span><span>収支</span></button>
+        <button type="button" class="nav-tab" data-tab="backup" role="tab" aria-selected="false" aria-controls="panel-backup" id="tab-backup"><span class="nav-symbol" aria-hidden="true">▤</span><span>データバックアップ</span></button>
+      </nav>
+      <button type="button" id="sidebarSettings" class="sidebar-settings outline-button">⚙ デザイン設定</button>
     </aside>
-    <main class="main-column">
+    <main class="main-column" id="mainContent">
+      <section class="tab-panel" id="panel-collection" role="tabpanel" aria-labelledby="tab-collection">
+  <div class="card">
+    <h2>マイコレクション</h2>
+    <div id="goodsList" class="goods-grid"></div>
+  </div>
+      </section>
+      <section class="tab-panel" id="panel-register" role="tabpanel" aria-labelledby="tab-register" hidden>
   <div class="card">
     <h2>グッズを登録</h2>
 
@@ -167,12 +193,18 @@
 
     <button id="addButton" disabled>読み込み中...</button>
   </div>
-
+      </section>
+      <section class="tab-panel" id="panel-summary" role="tabpanel" aria-labelledby="tab-summary" hidden>
   <div class="card">
-    <h2>マイコレクション</h2>
-    <div id="goodsList" class="goods-grid"></div>
+    <h2>収支サマリー</h2>
+    <p>購入合計：<span id="totalBuy">0</span>円</p>
+    <p>売却合計：<span id="totalSell">0</span>円</p>
+    <p class="summary">
+      実質負担額：<span id="balance">0</span>円
+    </p>
   </div>
-
+      </section>
+      <section class="tab-panel" id="panel-backup" role="tabpanel" aria-labelledby="tab-backup" hidden>
   <div class="card">
     <h2>データのバックアップ</h2>
     <p>写真とグッズ情報をまとめて保存できます。</p>
@@ -194,7 +226,7 @@
       データを復元
     </button>
   </div>
-  
+      </section>
     </main>
   </div>
 
@@ -365,6 +397,7 @@
         photoInput.value = "";
 
         await renderGoods();
+        switchTab("collection");
       } catch (error) {
         console.error(error);
         alert("保存に失敗したよ。空き容量などを確認してね。");
@@ -818,7 +851,6 @@
       try { savedTheme = normalizeTheme(JSON.parse(localStorage.getItem(THEME_KEY))); }
       catch (error) { console.warn("テーマ設定を読み込めませんでした",error); }
       applyTheme(savedTheme);
-      document.getElementById("openSettings").addEventListener("click",() => document.getElementById("settingsDialog").showModal());
       document.getElementById("closeSettings").addEventListener("click",() => document.getElementById("settingsDialog").close());
       document.getElementById("settingsDialog").addEventListener("close",() => applyTheme(savedTheme));
       for (const [id,key] of [["themeBg","bg"],["themeText","text"],["themeAccent","accent"],["themeFont","font"],["themeDecoration","decoration"]]) {
@@ -836,6 +868,41 @@
       document.getElementById("resetTheme").addEventListener("click",() => applyTheme(DEFAULT_THEME));
     }
     initializeTheme();
+
+
+    // メニューの切り替え。画面を隠すだけなので入力中の値も維持されます。
+    function switchTab(name) {
+      const selected = document.getElementById("panel-" + name);
+      if (!selected) return;
+      document.querySelectorAll(".tab-panel").forEach(panel => {
+        panel.hidden = panel !== selected;
+      });
+      document.querySelectorAll(".nav-tab").forEach(tab => {
+        const active = tab.dataset.tab === name;
+        tab.classList.toggle("is-active", active);
+        tab.setAttribute("aria-selected", String(active));
+        tab.tabIndex = active ? 0 : -1;
+      });
+      if (window.matchMedia("(max-width: 760px)").matches) {
+        document.getElementById("mainContent").scrollIntoView({block:"start",behavior:"smooth"});
+      }
+    }
+    document.querySelectorAll(".nav-tab").forEach(tab => {
+      tab.addEventListener("click", () => switchTab(tab.dataset.tab));
+      tab.addEventListener("keydown", event => {
+        if (!["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End"].includes(event.key)) return;
+        event.preventDefault();
+        const tabs = [...document.querySelectorAll(".nav-tab")];
+        const index = tabs.indexOf(tab);
+        const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 :
+          (index + (["ArrowRight","ArrowDown"].includes(event.key) ? 1 : -1) + tabs.length) % tabs.length;
+        switchTab(tabs[next].dataset.tab);
+        tabs[next].focus();
+      });
+    });
+    document.getElementById("sidebarSettings").addEventListener("click", () => {
+      document.getElementById("settingsDialog").showModal();
+    });
 
     init();
   </script>
