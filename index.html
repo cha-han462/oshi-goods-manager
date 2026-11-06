@@ -164,6 +164,22 @@
     .goods-memo {white-space:pre-wrap;overflow-wrap:anywhere;max-height:5.4em;overflow:hidden;}
     .empty-collection {grid-column:1/-1;text-align:center;padding:35px 10px;color:var(--text-color);}
     @media(max-width:520px) {.collection-search-row{grid-template-columns:1fr;} }
+    /* STEP 13: アルバムの省略表示・タグ・収支一覧 */
+    .goods-item h3 {display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;line-height:1.55;min-height:3.1em;overflow-wrap:anywhere;}
+    .goods-memo {display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;max-height:none;white-space:pre-wrap;line-height:1.6;min-height:0;}
+    .goods-date {font-size:12px;margin:6px 0;color:var(--text-color);opacity:.85;}
+    .goods-tags {display:flex;flex-wrap:wrap;gap:5px;margin:8px 0;}
+    .goods-tag {font-size:11px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 8px;background:var(--soft-bg);border:1px solid var(--border-color);border-radius:30px;color:var(--text-color);cursor:pointer;}
+    .goods-tag:focus-visible {outline:2px solid var(--accent);outline-offset:2px;}
+    .goods-tag-more {font-size:11px;padding:3px 8px;border-radius:30px;background:var(--soft-bg);color:var(--text-color);}
+    .finance-table-wrap {width:100%;overflow-x:auto;}
+    .finance-table {width:100%;min-width:540px;border-collapse:collapse;font-size:14px;}
+    .finance-table th,.finance-table td {padding:11px 9px;border-bottom:1px solid var(--border-color);text-align:right;white-space:nowrap;}
+    .finance-table th:first-child,.finance-table td:first-child {text-align:left;white-space:normal;min-width:150px;overflow-wrap:anywhere;}
+    .finance-table thead,.finance-table tfoot {background:var(--soft-bg);}
+    .finance-table tfoot th,.finance-table tfoot td {font-weight:bold;}
+    .finance-table tbody tr:hover {background:var(--soft-bg);}
+    .finance-empty {text-align:center !important;}
   </style>
 </head>
 <body>
@@ -194,7 +210,7 @@
         <button type="button" class="filter-tab" data-filter="sold" aria-pressed="false">♧ 思い出</button>
       </div>
       <div class="collection-search-row">
-        <label class="search-label" for="goodsSearch">グッズを検索<input id="goodsSearch" type="search" placeholder="名前・思い出メモで検索"></label>
+        <label class="search-label" for="goodsSearch">グッズを検索<input id="goodsSearch" type="search" placeholder="名前・メモ・タグで検索"></label>
         <label class="sort-label" for="goodsSort">並び替え<select id="goodsSort"><option value="new">登録が新しい順</option><option value="old">登録が古い順</option><option value="buyHigh">購入価格が高い順</option><option value="buyLow">購入価格が安い順</option><option value="name">名前順</option></select></label>
       </div>
       <p id="collectionCount" class="hint" aria-live="polite"></p>
@@ -221,6 +237,7 @@
     <label for="goodsBoughtAt">購入日（任意）</label><input id="goodsBoughtAt" type="date">
     <label for="goodsSoldAt">売却日（任意）</label><input id="goodsSoldAt" type="date">
     <label for="goodsMemo">思い出メモ（任意）</label><textarea id="goodsMemo" rows="3" placeholder="このグッズとの思い出を書いてね"></textarea>
+    <label for="goodsTags">タグ（カンマ区切り・任意）</label><input id="goodsTags" type="text" placeholder="例：オズ, アクスタ, 6周年"><p class="hint">タグは何個でも登録できるよ。コレクションには最大3個表示します。</p>
     <label for="goodsPhoto">グッズの写真</label>
     <input type="file" id="goodsPhoto" accept="image/*">
 
@@ -235,6 +252,15 @@
     <p class="summary">
       実質負担額：<span id="balance">0</span>円
     </p>
+    <h3>グッズ別の収支一覧</h3>
+    <p class="hint">実質負担額＝購入額－売却額。未売却の売却額は「—」で表示します。</p>
+    <div class="finance-table-wrap">
+      <table class="finance-table">
+        <thead><tr><th scope="col">グッズ名</th><th scope="col">購入額</th><th scope="col">売却額</th><th scope="col">実質負担額</th></tr></thead>
+        <tbody id="financeRows"></tbody>
+        <tfoot><tr><th scope="row">合計</th><td id="financeTotalBuy">0円</td><td id="financeTotalSell">0円</td><td id="financeTotalBalance">0円</td></tr></tfoot>
+      </table>
+    </div>
   </div>
       </section>
       <section class="tab-panel" id="panel-backup" role="tabpanel" aria-labelledby="tab-backup" hidden>
@@ -278,6 +304,7 @@
     <label for="editBoughtAt">購入日（任意）</label><input id="editBoughtAt" type="date">
     <label for="editSoldAt">売却日（任意）</label><input id="editSoldAt" type="date">
     <label for="editMemo">思い出メモ（任意）</label><textarea id="editMemo" rows="4" placeholder="思い出を残そう"></textarea>
+    <label for="editTags">タグ（カンマ区切り・任意）</label><input id="editTags" type="text" placeholder="例：オズ, アクスタ, 6周年">
     <p id="editBalance"></p>
     <label for="editPhoto">写真を変更（変更しないなら空欄）</label>
     <input id="editPhoto" type="file" accept="image/*">
@@ -333,6 +360,31 @@
     const statusOf = item => item.status === "owned" || item.status === "sold" ? item.status : (item.sell === null || item.sell === undefined ? "owned" : "sold");
     const validDate = value => typeof value === "string" && (value === "" || (/^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value))));
     const validStatus = value => value === "owned" || value === "sold";
+    const parseTags = value => [...new Set(String(value || "").split(/[,，、]/).map(t => t.trim()).filter(Boolean))];
+    const tagsOf = item => Array.isArray(item.tags) ? item.tags.filter(t => typeof t === "string" && t.trim()) : [];
+    const formatDate = value => value ? value.replaceAll("-", "/") : "未登録";
+    function renderFinance(goods) {
+      const rows = $("financeRows");
+      rows.replaceChildren();
+      if (!goods.length) {
+        const tr=document.createElement("tr"), td=document.createElement("td");
+        td.colSpan=4;td.className="finance-empty";td.textContent="まだ登録されたグッズはありません。";
+        tr.appendChild(td);rows.appendChild(tr);
+      }
+      for (const item of goods) {
+        const tr=document.createElement("tr");
+        const values=[item.name, item.buy.toLocaleString()+"円", item.sell == null ? "—" : item.sell.toLocaleString()+"円", (item.buy-(item.sell??0)).toLocaleString()+"円"];
+        for (const value of values) {
+          const td=document.createElement("td");td.textContent=value;tr.appendChild(td);
+        }
+        rows.appendChild(tr);
+      }
+      const buy=goods.reduce((sum,item)=>sum+item.buy,0);
+      const sell=goods.reduce((sum,item)=>sum+(item.sell??0),0);
+      $("financeTotalBuy").textContent=buy.toLocaleString()+"円";
+      $("financeTotalSell").textContent=sell.toLocaleString()+"円";
+      $("financeTotalBalance").textContent=(buy-sell).toLocaleString()+"円";
+    }
     function updateNewStatus() { if ($("sellPrice").value !== "") $("goodsStatus").value = "sold"; }
     $("sellPrice").addEventListener("change", updateNewStatus);
     $("editSell").addEventListener("change", () => { if ($("editSell").value !== "") $("editStatus").value = "sold"; });
@@ -446,6 +498,7 @@
           boughtAt: $("goodsBoughtAt").value,
           soldAt: $("goodsSoldAt").value,
           memo: $("goodsMemo").value.trim(),
+          tags: parseTags($("goodsTags").value),
           createdAt: new Date().toISOString()
         });
 
@@ -457,6 +510,7 @@
         $("goodsBoughtAt").value = "";
         $("goodsSoldAt").value = "";
         $("goodsMemo").value = "";
+        $("goodsTags").value = "";
 
         await renderGoods();
         switchTab("collection");
@@ -479,11 +533,12 @@
       $("totalBuy").textContent = totalBuy.toLocaleString();
       $("totalSell").textContent = totalSell.toLocaleString();
       $("balance").textContent = (totalBuy - totalSell).toLocaleString();
+      renderFinance(goods);
 
       const keyword = $("goodsSearch").value.trim().toLocaleLowerCase();
       const visible = goods.filter(item =>
         (collectionFilter === "all" || statusOf(item) === collectionFilter) &&
-        (!keyword || (item.name + " " + (item.memo || "")).toLocaleLowerCase().includes(keyword))
+        (!keyword || (item.name + " " + (item.memo || "") + " " + tagsOf(item).join(" ")).toLocaleLowerCase().includes(keyword))
       );
       const sort = $("goodsSort").value;
       visible.sort((a,b) => {
@@ -516,9 +571,32 @@
         const status=document.createElement("span");status.className="status-tag";
         status.textContent=statusOf(item)==="sold" ? "♧ 思い出" : "♡ 所持中";
         const name=document.createElement("h3");name.textContent=item.name;
-        const details=document.createElement("p");
-        details.textContent="購入："+item.buy.toLocaleString()+"円 ／ "+(item.sell==null?"未売却":"売却："+item.sell.toLocaleString()+"円");
-        div.append(photoButton,status,name,details);
+        const date=document.createElement("p");date.className="goods-date";
+        date.textContent="購入日："+formatDate(item.boughtAt);
+        div.append(photoButton,status,name,date);
+        const tags=tagsOf(item);
+        if(tags.length) {
+          const wrap=document.createElement("div");wrap.className="goods-tags";
+          tags.slice(0,3).forEach(tag=>{
+            const chip=document.createElement("button");chip.type="button";chip.className="goods-tag";
+            chip.textContent=tag;chip.title=tag;
+            chip.setAttribute("aria-label","タグ「"+tag+"」で検索");
+            chip.addEventListener("click",()=>{
+              $("goodsSearch").value=tag;collectionFilter="all";
+              document.querySelectorAll(".filter-tab").forEach(b=>{
+                const active=b.dataset.filter==="all";b.classList.toggle("is-active",active);b.setAttribute("aria-pressed",String(active));
+              });
+              renderGoods().catch(console.error);
+            });
+            wrap.appendChild(chip);
+          });
+          if(tags.length>3) {
+            const more=document.createElement("span");more.className="goods-tag-more";
+            more.textContent="+"+(tags.length-3);more.title=tags.slice(3).join(", ");
+            wrap.appendChild(more);
+          }
+          div.appendChild(wrap);
+        }
         if(item.memo) {const memo=document.createElement("p");memo.className="goods-memo hint";memo.textContent=item.memo;div.appendChild(memo);}
         const editButton=document.createElement("button");editButton.textContent="詳細・編集";
         editButton.addEventListener("click",()=>openEditDialog(item.id));
@@ -554,6 +632,7 @@
         $("editBoughtAt").value = item.boughtAt || "";
         $("editSoldAt").value = item.soldAt || "";
         $("editMemo").value = item.memo || "";
+        $("editTags").value = tagsOf(item).join(", ");
         document.getElementById("editPhoto").value = "";
         document.getElementById("removeEditPhoto").checked = false;
         clearEditPreviewUrl();
@@ -613,6 +692,7 @@
           boughtAt: $("editBoughtAt").value,
           soldAt: $("editSoldAt").value,
           memo: $("editMemo").value.trim(),
+          tags: parseTags($("editTags").value),
           photo: selectedPhoto || (removePhoto ? null : item.photo)
         });
         document.getElementById("editDialog").close();
@@ -700,6 +780,7 @@
             boughtAt: item.boughtAt || "",
             soldAt: item.soldAt || "",
             memo: item.memo || "",
+            tags: tagsOf(item),
             createdAt: item.createdAt || "",
             photo: item.photo
               ? await fileToDataURL(item.photo)
@@ -709,7 +790,7 @@
 
         const backup = {
           app: "oshi-goods-manager",
-          version: 2,
+          version: 3,
           exportedAt: new Date().toISOString(),
           goods: records
         };
@@ -760,7 +841,7 @@
 
         if (
           backup.app !== "oshi-goods-manager" ||
-          ![1,2].includes(backup.version) ||
+          ![1,2,3].includes(backup.version) ||
           !Array.isArray(backup.goods)
         ) {
           throw new Error("対応していないバックアップです");
@@ -786,11 +867,15 @@
             throw new Error("グッズ情報の形式が不正です");
           }
 
-          if (backup.version === 2 &&
+          if (backup.version >= 2 &&
               (!validStatus(item.status) || !validDate(item.boughtAt) ||
                !validDate(item.soldAt) || typeof item.memo !== "string" ||
                typeof item.createdAt !== "string")) {
             throw new Error("追加項目の形式が不正です");
+          }
+          if (backup.version === 3 &&
+              (!Array.isArray(item.tags) || !item.tags.every(t => typeof t === "string"))) {
+            throw new Error("タグの形式が不正です");
           }
           restored.push({
             id: item.id,
@@ -801,6 +886,7 @@
             boughtAt: validDate(item.boughtAt) ? item.boughtAt : "",
             soldAt: validDate(item.soldAt) ? item.soldAt : "",
             memo: typeof item.memo === "string" ? item.memo : "",
+            tags: tagsOf(item),
             createdAt: typeof item.createdAt === "string" ? item.createdAt : "",
             photo: item.photo == null
               ? null
